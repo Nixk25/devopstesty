@@ -1,11 +1,13 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
 import { roomController } from './controller/roomController.js';
 import { reservationController } from './controller/reservationController.js';
 
 export function buildApp() {
   const app = Fastify({ logger: true });
 
+  app.register(helmet);
   app.register(cors);
 
   app.get('/health', async () => {

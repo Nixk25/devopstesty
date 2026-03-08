@@ -20,6 +20,7 @@
   "description": "Room reservation system - semester project",
   "dependencies": {
     "@fastify/cors": "^11.2.0",
+    "@fastify/helmet": "^13.0.2",
     "@prisma/client": "^6.19.2",
     "dotenv": "^17.3.1",
     "fastify": "^5.8.2",
