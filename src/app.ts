@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { roomController } from './controller/roomController.js';
 import { reservationController } from './controller/reservationController.js';
+import { metricsController } from './controller/metricsController.js';
 
 export function buildApp() {
   const app = Fastify({ logger: true });
@@ -19,6 +20,7 @@ export function buildApp() {
     return { status: 'ok' };
   });
 
+  metricsController(app);
   roomController(app);
   reservationController(app);
 
