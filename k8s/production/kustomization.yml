@@ -36,5 +36,8 @@ patches:
       name: db-credentials
     patch: |
       - op: replace
-        path: /stringData/DATABASE_URL
-        value: "postgresql://reservations:prodpassword@prod-db-service:5432/reservations"
+        path: /data/DATABASE_URL
+        value: cG9zdGdyZXNxbDovL3Jlc2VydmF0aW9uczpwcm9kcGFzc3dvcmRAcHJvZC1kYi1zZXJ2aWNlOjU0MzIvcmVzZXJ2YXRpb25z
+      - op: replace
+        path: /data/POSTGRES_PASSWORD
+        value: cHJvZHBhc3N3b3Jk
