@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { validateNonEmpty, validateTimeRange, validateNotInPast } from './validators.js';
 
 export enum ReservationStatus {
   CONFIRMED = 'confirmed',
@@ -14,25 +15,12 @@ export class Reservation {
   private _status: ReservationStatus;
 
   constructor(roomId: string, userId: string, startTime: Date, endTime: Date) {
-    if (!roomId || roomId.trim().length === 0) {
-      throw new Error('Room ID is required');
-    }
-
-    if (!userId || userId.trim().length === 0) {
-      throw new Error('User ID is required');
-    }
-
-    if (startTime >= endTime) {
-      throw new Error('Start time must be before end time');
-    }
-
-    if (startTime < new Date()) {
-      throw new Error('Cannot create reservation in the past');
-    }
+    this.roomId = validateNonEmpty(roomId, 'Room ID');
+    this.userId = validateNonEmpty(userId, 'User ID');
+    validateTimeRange(startTime, endTime);
+    validateNotInPast(startTime);
 
     this.id = randomUUID();
-    this.roomId = roomId;
-    this.userId = userId;
     this.startTime = new Date(startTime);
     this.endTime = new Date(endTime);
     this._status = ReservationStatus.CONFIRMED;

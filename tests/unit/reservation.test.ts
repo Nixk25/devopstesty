@@ -43,12 +43,12 @@ describe('Reservation', () => {
 
   it('should throw error when roomId is empty', () => {
     expect(() => new Reservation('', 'user-1', tomorrow, tomorrowEnd))
-      .toThrow('Room ID is required');
+      .toThrow('Room ID cannot be empty');
   });
 
   it('should throw error when userId is empty', () => {
     expect(() => new Reservation('room-1', '', tomorrow, tomorrowEnd))
-      .toThrow('User ID is required');
+      .toThrow('User ID cannot be empty');
   });
 
   it('should cancel a confirmed reservation', () => {

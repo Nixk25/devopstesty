@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { validateNonEmpty, validateEmail } from './validators.js';
 
 export enum UserRole {
   USER = 'user',
@@ -12,18 +13,9 @@ export class User {
   public readonly role: UserRole;
 
   constructor(name: string, email: string, role: UserRole = UserRole.USER) {
-    if (!name || name.trim().length === 0) {
-      throw new Error('User name cannot be empty');
-    }
-
-    const trimmedEmail = email?.trim() || '';
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      throw new Error('Invalid email format');
-    }
-
+    this.name = validateNonEmpty(name, 'User name');
+    this.email = validateEmail(email);
     this.id = randomUUID();
-    this.name = name.trim();
-    this.email = trimmedEmail;
     this.role = role;
   }
 
