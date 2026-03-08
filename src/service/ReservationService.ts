@@ -1,9 +1,17 @@
 import { Reservation } from '../domain/Reservation.js';
 import { Room } from '../domain/Room.js';
 import { User } from '../domain/User.js';
+import { NotificationService } from './NotificationService.js';
 
 export class ReservationService {
   private reservations: Reservation[] = [];
+  private rooms: Map<string, Room> = new Map();
+  private users: Map<string, User> = new Map();
+  private notificationService?: NotificationService;
+
+  constructor(notificationService?: NotificationService) {
+    this.notificationService = notificationService;
+  }
 
   createReservation(room: Room, user: User, startTime: Date, endTime: Date): Reservation {
     if (!room.isActive) {
@@ -21,6 +29,13 @@ export class ReservationService {
     }
 
     this.reservations.push(newReservation);
+    this.rooms.set(room.id, room);
+    this.users.set(user.id, user);
+
+    this.notificationService?.sendReservationConfirmation(
+      user.email, room.name, startTime, endTime
+    );
+
     return newReservation;
   }
 
@@ -36,6 +51,12 @@ export class ReservationService {
     }
 
     reservation.cancel();
+
+    const owner = this.users.get(reservation.userId);
+    const room = this.rooms.get(reservation.roomId);
+    if (owner && room) {
+      this.notificationService?.sendCancellationNotice(owner.email, room.name);
+    }
   }
 
   getReservations(): Reservation[] {
