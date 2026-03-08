@@ -11,10 +11,14 @@ export function roomController(app: FastifyInstance) {
       equipment?: string[];
     };
 
-    const room = new Room(name, capacity, equipment);
-    rooms.set(room.id, room);
-
-    return reply.status(201).send(room);
+    try {
+      const room = new Room(name, capacity, equipment);
+      rooms.set(room.id, room);
+      return reply.status(201).send(room);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return reply.status(400).send({ error: message });
+    }
   });
 
   app.get('/api/rooms', async () => {

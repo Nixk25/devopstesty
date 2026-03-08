@@ -35,14 +35,15 @@ describe('API Integration Tests', () => {
     expect(body.id).toBeDefined();
   });
 
-  it('POST /api/rooms should return 500 for invalid data', async () => {
+  it('POST /api/rooms should return 400 for invalid data', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/rooms',
       payload: { name: '', capacity: 10 },
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe('Room name cannot be empty');
   });
 
   it('GET /api/rooms should return all rooms', async () => {
