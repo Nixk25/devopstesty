@@ -1,0 +1,30 @@
+{
+  "name": "room-reservation-system",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Room reservation system - semester project",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "fastify": "^5.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "c8": "^11.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
