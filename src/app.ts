@@ -16,6 +16,21 @@ export function buildApp() {
     timeWindow: '1 minute',
   });
 
+  app.get('/', async () => {
+    return {
+      name: 'Room Reservation System',
+      version: '0.1.0',
+      endpoints: {
+        health: 'GET /health',
+        rooms: 'GET /api/rooms',
+        users: 'GET /api/users',
+        reservations: 'GET /api/reservations',
+        stats: 'GET /api/reservations/stats',
+        metrics: 'GET /metrics',
+      },
+    };
+  });
+
   app.get('/health', async () => {
     return { status: 'ok' };
   });

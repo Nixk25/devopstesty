@@ -371,6 +371,197 @@ describe('API Integration Tests', () => {
     expect(response.json().length).toBeGreaterThanOrEqual(1);
   });
 
+  it('GET / should return API info', async () => {
+    const response = await app.inject({ method: 'GET', url: '/' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().name).toBe('Room Reservation System');
+    expect(response.json().endpoints).toBeDefined();
+  });
+
+  it('GET /metrics should return metrics', async () => {
+    const response = await app.inject({ method: 'GET', url: '/metrics' });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.uptime_seconds).toBeDefined();
+    expect(body.total_requests).toBeDefined();
+    expect(body.database).toBe('up');
+  });
+
+  it('GET /api/reservations/stats should return stats', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/reservations/stats' });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.totalReservations).toBeDefined();
+    expect(body.activeReservations).toBeDefined();
+  });
+
+  it('POST /api/users should return 400 for empty name', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: '', email: 'test@test.com' },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('should reject reservation for non-existent user', async () => {
+    const roomRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Room for fake user', capacity: 5 },
+    });
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(12, 0, 0, 0);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/reservations',
+      payload: {
+        roomId: roomRes.json().id,
+        userId: 'fake-user',
+        startTime: tomorrow.toISOString(),
+        endTime: tomorrowEnd.toISOString(),
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toBe('User not found');
+  });
+
+  it('should reject reservation with invalid time range', async () => {
+    const roomRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Time test room', capacity: 5 },
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Time user', email: 'time@test.com' },
+    });
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(14, 0, 0, 0);
+    const tomorrowEarlier = new Date(tomorrow);
+    tomorrowEarlier.setHours(10, 0, 0, 0);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/reservations',
+      payload: {
+        roomId: roomRes.json().id,
+        userId: userRes.json().id,
+        startTime: tomorrow.toISOString(),
+        endTime: tomorrowEarlier.toISOString(),
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('should reject cancellation by non-owner non-admin', async () => {
+    const roomRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Auth room', capacity: 5 },
+    });
+    const ownerRes = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Owner', email: 'owner@test.com' },
+    });
+    const otherRes = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Other', email: 'other@test.com' },
+    });
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(12, 0, 0, 0);
+
+    const resResponse = await app.inject({
+      method: 'POST',
+      url: '/api/reservations',
+      payload: {
+        roomId: roomRes.json().id,
+        userId: ownerRes.json().id,
+        startTime: tomorrow.toISOString(),
+        endTime: tomorrowEnd.toISOString(),
+      },
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/reservations/${resResponse.json().id}/cancel`,
+      payload: { userId: otherRes.json().id },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('PATCH deactivate should return 404 for unknown room', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/rooms/unknown-id/deactivate',
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('PATCH activate should return 404 for unknown room', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/rooms/unknown-id/activate',
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('POST /api/rooms should return 400 for invalid capacity', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Bad room', capacity: -5 },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('should reject cancellation for non-existent reservation', async () => {
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Cancel test', email: 'canceltest@test.com' },
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/reservations/fake-id/cancel',
+      payload: { userId: userRes.json().id },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('should reject cancellation for non-existent user', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/reservations/some-id/cancel',
+      payload: { userId: 'fake-user' },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it('should reject reservation for non-existent room', async () => {
     const userRes = await app.inject({
       method: 'POST',
