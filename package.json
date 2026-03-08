@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && eslint src/",
     "db:migrate": "npx prisma migrate deploy",
     "db:generate": "npx prisma generate"
   },
@@ -26,11 +26,14 @@
     "prisma": "^6.19.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.3.5",
     "@vitest/coverage-v8": "^4.0.18",
     "c8": "^11.0.0",
+    "eslint": "^10.0.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   }
 }
