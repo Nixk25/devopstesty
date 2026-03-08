@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx vitest:*)",
       "Bash(npm install:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npx:*)",
+      "Bash(docker compose:*)"
     ]
   }
 }

@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=reservations
+      - POSTGRES_PASSWORD=reservations
+      - POSTGRES_DB=reservations
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reservations"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata_dev:
