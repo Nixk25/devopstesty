@@ -1,7 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { Room } from '../domain/Room.js';
-
-const rooms: Map<string, Room> = new Map();
+import { prisma } from '../config/database.js';
 
 export function roomController(app: FastifyInstance) {
   app.post('/api/rooms', async (request, reply) => {
@@ -11,54 +9,73 @@ export function roomController(app: FastifyInstance) {
       equipment?: string[];
     };
 
-    try {
-      const room = new Room(name, capacity, equipment);
-      rooms.set(room.id, room);
-      return reply.status(201).send(room);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      return reply.status(400).send({ error: message });
+    if (!name || name.trim().length === 0) {
+      return reply.status(400).send({ error: 'Room name cannot be empty' });
     }
+
+    if (!Number.isInteger(capacity) || capacity <= 0) {
+      return reply.status(400).send({ error: 'Capacity must be a positive integer' });
+    }
+
+    const room = await prisma.room.create({
+      data: {
+        name: name.trim(),
+        capacity,
+        equipment: JSON.stringify(equipment || []),
+      },
+    });
+
+    return reply.status(201).send({
+      ...room,
+      equipment: JSON.parse(room.equipment),
+    });
   });
 
   app.get('/api/rooms', async () => {
-    return Array.from(rooms.values());
+    const rooms = await prisma.room.findMany();
+    return rooms.map((r) => ({ ...r, equipment: JSON.parse(r.equipment) }));
   });
 
   app.get('/api/rooms/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const room = rooms.get(id);
+    const room = await prisma.room.findUnique({ where: { id } });
 
     if (!room) {
       return reply.status(404).send({ error: 'Room not found' });
     }
 
-    return room;
+    return { ...room, equipment: JSON.parse(room.equipment) };
   });
 
   app.patch('/api/rooms/:id/deactivate', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const room = rooms.get(id);
+    const room = await prisma.room.findUnique({ where: { id } });
 
     if (!room) {
       return reply.status(404).send({ error: 'Room not found' });
     }
 
-    room.deactivate();
-    return room;
+    const updated = await prisma.room.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    return { ...updated, equipment: JSON.parse(updated.equipment) };
   });
 
   app.patch('/api/rooms/:id/activate', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const room = rooms.get(id);
+    const room = await prisma.room.findUnique({ where: { id } });
 
     if (!room) {
       return reply.status(404).send({ error: 'Room not found' });
     }
 
-    room.activate();
-    return room;
+    const updated = await prisma.room.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
+    return { ...updated, equipment: JSON.parse(updated.equipment) };
   });
 }
-
-export { rooms };

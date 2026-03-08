@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { buildApp } from '../../src/app.js';
+import { prisma } from '../../src/config/database.js';
 import { FastifyInstance } from 'fastify';
 
 describe('API Integration Tests', () => {
@@ -10,7 +11,14 @@ describe('API Integration Tests', () => {
     await app.ready();
   });
 
+  beforeEach(async () => {
+    await prisma.reservation.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.room.deleteMany();
+  });
+
   afterAll(async () => {
+    await prisma.$disconnect();
     await app.close();
   });
 
@@ -47,10 +55,16 @@ describe('API Integration Tests', () => {
   });
 
   it('GET /api/rooms should return all rooms', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Room 1', capacity: 5 },
+    });
+
     const response = await app.inject({ method: 'GET', url: '/api/rooms' });
 
     expect(response.statusCode).toBe(200);
-    expect(Array.isArray(response.json())).toBe(true);
+    expect(response.json()).toHaveLength(1);
   });
 
   it('GET /api/rooms/:id should return 404 for unknown room', async () => {
@@ -71,6 +85,22 @@ describe('API Integration Tests', () => {
     expect(body.name).toBe('Jan Novak');
     expect(body.email).toBe('jan@example.com');
     expect(body.role).toBe('user');
+  });
+
+  it('POST /api/users should reject duplicate email', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Jan', email: 'jan@example.com' },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Jan 2', email: 'jan@example.com' },
+    });
+
+    expect(response.statusCode).toBe(409);
   });
 
   it('should create and retrieve a reservation', async () => {
@@ -111,7 +141,66 @@ describe('API Integration Tests', () => {
     expect(reservation.userId).toBe(user.id);
 
     const listRes = await app.inject({ method: 'GET', url: '/api/reservations' });
-    expect(listRes.json().length).toBeGreaterThanOrEqual(1);
+    expect(listRes.json()).toHaveLength(1);
+  });
+
+  it('should reject overlapping reservation', async () => {
+    const roomRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Room overlap', capacity: 5 },
+    });
+    const room = roomRes.json();
+
+    const user1Res = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'User 1', email: 'user1@example.com' },
+    });
+    const user1 = user1Res.json();
+
+    const user2Res = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'User 2', email: 'user2@example.com' },
+    });
+    const user2 = user2Res.json();
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(12, 0, 0, 0);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/reservations',
+      payload: {
+        roomId: room.id,
+        userId: user1.id,
+        startTime: tomorrow.toISOString(),
+        endTime: tomorrowEnd.toISOString(),
+      },
+    });
+
+    const overlap = new Date(tomorrow);
+    overlap.setHours(11, 0, 0, 0);
+    const overlapEnd = new Date(tomorrow);
+    overlapEnd.setHours(13, 0, 0, 0);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/reservations',
+      payload: {
+        roomId: room.id,
+        userId: user2.id,
+        startTime: overlap.toISOString(),
+        endTime: overlapEnd.toISOString(),
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe('Room is already reserved for this time slot');
   });
 
   it('should reject reservation for non-existent room', async () => {
@@ -121,14 +210,20 @@ describe('API Integration Tests', () => {
       payload: { name: 'Another User', email: 'another@example.com' },
     });
 
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(12, 0, 0, 0);
+
     const response = await app.inject({
       method: 'POST',
       url: '/api/reservations',
       payload: {
         roomId: 'fake-room',
         userId: userRes.json().id,
-        startTime: new Date().toISOString(),
-        endTime: new Date().toISOString(),
+        startTime: tomorrow.toISOString(),
+        endTime: tomorrowEnd.toISOString(),
       },
     });
 
