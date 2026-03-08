@@ -2,6 +2,8 @@
 
 Systém pro správu rezervací místností. REST API postavené na Node.js, TypeScript a Fastify s databází přes Prisma ORM.
 
+**Stav projektu:** 91 testů | 87% code coverage | CI/CD pipeline | Docker + Kubernetes
+
 ## Architektura
 
 ```
@@ -132,7 +134,17 @@ Klíčová doménová logika vznikala cyklem red-green-refactor:
 | GET | /api/reservations | Seznam rezervací |
 | GET | /api/reservations/room/:roomId | Rezervace podle místnosti |
 | GET | /api/reservations/user/:userId | Rezervace podle uživatele |
+| GET | /api/reservations/stats | Statistiky rezervací |
 | PATCH | /api/reservations/:id/cancel | Zrušení rezervace |
+
+## Bezpečnost
+
+- **Helmet** - bezpečnostní HTTP hlavičky (X-Content-Type-Options, X-Frame-Options, HSTS)
+- **Rate limiting** - max 100 requestů za minutu na IP adresu
+- **CORS** - konfigurovatelné povolené originy
+- **Secrets** - citlivé údaje v .env (lokálně) a Kubernetes Secrets (cluster), nikdy v repozitáři v plaintextu
+- **Non-root** - Docker kontejner běží pod neprivilegovaným uživatelem
+- **Validace vstupů** - všechny vstupy validovány před zpracováním
 
 ## Prostředí
 
