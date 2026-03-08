@@ -105,6 +105,34 @@ export function reservationController(app: FastifyInstance) {
     return prisma.reservation.findMany({ where: { userId } });
   });
 
+  app.get('/api/reservations/stats', async () => {
+    const reservations = await prisma.reservation.findMany();
+    const active = reservations.filter((r) => r.status === 'confirmed');
+    const cancelled = reservations.filter((r) => r.status === 'cancelled');
+
+    let mostBookedRoomId: string | null = null;
+    if (active.length > 0) {
+      const roomCounts = new Map<string, number>();
+      for (const r of active) {
+        roomCounts.set(r.roomId, (roomCounts.get(r.roomId) || 0) + 1);
+      }
+      let maxCount = 0;
+      for (const [roomId, count] of roomCounts) {
+        if (count > maxCount) {
+          maxCount = count;
+          mostBookedRoomId = roomId;
+        }
+      }
+    }
+
+    return {
+      totalReservations: reservations.length,
+      activeReservations: active.length,
+      cancelledReservations: cancelled.length,
+      mostBookedRoomId,
+    };
+  });
+
   app.patch('/api/reservations/:id/cancel', async (request, reply) => {
     const { id } = request.params as { id: string };
     const { userId } = request.body as { userId: string };
