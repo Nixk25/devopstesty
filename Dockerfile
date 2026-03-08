@@ -28,7 +28,9 @@ RUN npm ci --omit=dev
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist/
+COPY scripts/docker-entrypoint.sh ./scripts/
 
+RUN chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 3000
@@ -36,4 +38,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-CMD ["node", "dist/index.js"]
+ENTRYPOINT ["sh", "scripts/docker-entrypoint.sh"]
