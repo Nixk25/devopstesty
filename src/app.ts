@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import { roomController } from './controller/roomController.js';
 import { reservationController } from './controller/reservationController.js';
 
@@ -9,6 +10,10 @@ export function buildApp() {
 
   app.register(helmet);
   app.register(cors);
+  app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+  });
 
   app.get('/health', async () => {
     return { status: 'ok' };
