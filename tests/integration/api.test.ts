@@ -203,6 +203,174 @@ describe('API Integration Tests', () => {
     expect(response.json().error).toBe('Room is already reserved for this time slot');
   });
 
+  it('GET /api/rooms/:id should return existing room', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Find me', capacity: 8 },
+    });
+    const room = createRes.json();
+
+    const response = await app.inject({ method: 'GET', url: `/api/rooms/${room.id}` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().name).toBe('Find me');
+  });
+
+  it('PATCH /api/rooms/:id/deactivate should deactivate room', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Deactivate me', capacity: 5 },
+    });
+    const room = createRes.json();
+
+    const response = await app.inject({ method: 'PATCH', url: `/api/rooms/${room.id}/deactivate` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().isActive).toBe(false);
+  });
+
+  it('PATCH /api/rooms/:id/activate should activate room', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Activate me', capacity: 5 },
+    });
+    const room = createRes.json();
+
+    await app.inject({ method: 'PATCH', url: `/api/rooms/${room.id}/deactivate` });
+    const response = await app.inject({ method: 'PATCH', url: `/api/rooms/${room.id}/activate` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().isActive).toBe(true);
+  });
+
+  it('should reject reservation for inactive room', async () => {
+    const roomRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Inactive room', capacity: 5 },
+    });
+    const room = roomRes.json();
+    await app.inject({ method: 'PATCH', url: `/api/rooms/${room.id}/deactivate` });
+
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'User X', email: 'userx@example.com' },
+    });
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(12, 0, 0, 0);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/reservations',
+      payload: {
+        roomId: room.id,
+        userId: userRes.json().id,
+        startTime: tomorrow.toISOString(),
+        endTime: tomorrowEnd.toISOString(),
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe('Cannot reserve an inactive room');
+  });
+
+  it('should cancel a reservation', async () => {
+    const roomRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Cancel room', capacity: 5 },
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Cancel user', email: 'cancel@example.com' },
+    });
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(12, 0, 0, 0);
+
+    const resResponse = await app.inject({
+      method: 'POST',
+      url: '/api/reservations',
+      payload: {
+        roomId: roomRes.json().id,
+        userId: userRes.json().id,
+        startTime: tomorrow.toISOString(),
+        endTime: tomorrowEnd.toISOString(),
+      },
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/reservations/${resResponse.json().id}/cancel`,
+      payload: { userId: userRes.json().id },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('should get reservations by room', async () => {
+    const roomRes = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: { name: 'Filter room', capacity: 5 },
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/reservations/room/${roomRes.json().id}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(Array.isArray(response.json())).toBe(true);
+  });
+
+  it('should get reservations by user', async () => {
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Filter user', email: 'filter@example.com' },
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/reservations/user/${userRes.json().id}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(Array.isArray(response.json())).toBe(true);
+  });
+
+  it('POST /api/users should return 400 for invalid email', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'Test', email: 'invalid' },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('GET /api/users should return all users', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      payload: { name: 'List user', email: 'list@example.com' },
+    });
+
+    const response = await app.inject({ method: 'GET', url: '/api/users' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().length).toBeGreaterThanOrEqual(1);
+  });
+
   it('should reject reservation for non-existent room', async () => {
     const userRes = await app.inject({
       method: 'POST',
