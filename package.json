@@ -12,7 +12,10 @@
     "test:coverage": "vitest run --coverage",
     "lint": "tsc --noEmit && eslint src/",
     "db:migrate": "npx prisma migrate deploy",
-    "db:generate": "npx prisma generate"
+    "db:generate": "npx prisma generate",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:test": "docker compose up -d --build && sleep 5 && ./scripts/smoke-test.sh && docker compose down"
   },
   "keywords": [],
   "author": "",
